@@ -2,9 +2,11 @@ from IRC_Class import *
 import os
 import random
 
+#Group 9
 #bot for connecting to IRC server
+#Created via help of online guide - https://www.techbeamers.com/create-python-irc-bot/
 
-serverAddress = "127.0.0.1"
+serverAddress = "0000:0000:0000:0000:0000:0000:0000:0001"
 portNum = 6667
 chanName = "#test"
 nickname = "Darius"

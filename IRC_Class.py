@@ -2,13 +2,16 @@ import socket
 import sys
 import time
 
+#Group 9
 #A class containing important functions for the IRC bot to work properly
+#Created via help of online guide - https://www.techbeamers.com/create-python-irc-bot/
+
 class IRC_Functs:
     soc = socket.socket()#create the socket
 
     def __init__(self):
         #initialise the socket
-        self.soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.soc = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
 
 
     #function for connecting to the IRC server
