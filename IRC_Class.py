@@ -4,7 +4,7 @@ import time
 
 #Group 9
 #A class containing important functions for the IRC bot to work properly
-#Created via help of online guide - https://www.techbeamers.com/create-python-irc-bot/
+
 
 class IRC_Functs:
     soc = socket.socket()#create the socket
@@ -23,7 +23,7 @@ class IRC_Functs:
         #user setup
         self.soc.send(bytes("USER " + nickname + " " + nickname +" " + nickname + " :python\n", "UTF-8"))#fill in the nickname form
         self.soc.send(bytes("NICK " + nickname + "\n", "UTF-8"))
-        #self.soc.send(bytes("NICKSERV IDENTIFY " + nicknamePass + " " + botPass + "\n", "UTF-8"))
+        
         
         #join a channel
         self.soc.send(bytes("JOIN " + chanName + "\n", "UTF-8"))
