@@ -10,14 +10,55 @@ sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
 print('Server Starting on {} port {}'.format(*ADDRESS))
 sock.bind(ADDRESS)
 
+#channel
+class Channel:
+
+    #initialise object attributes
+    def __init__(self, name):
+        self.name = name
+        self.users = []
+
+    #add client to list
+    def join(self, user):
+        self.users.append(user)
+        for u in self.users:
+            sendMSG(f'user {user.nickname} has joined the chat', u)
+
+    #remove client
+    def leave(self, user):
+        self.users.remove(user)
+        for u in self.users:
+            sendMSG(f'user {user.nickname} has left the channel', u)
+
+    #more messages
+
+    def privateMessageChannel(self, user, data):
+        if data == "":
+            return
+        m = f"|private| {user.nickname}: {data}"
+
+#create channel
+class User:
+    def __init__(self, socket, addr, username, nickname, realname):
+        self.socket = socket
+        self.address = addr
+        self.username = username
+        self.nickname = nickname
+        self.realname = realname
+
+channels = [Channel("Test"), Channel("Unicorn")]
+
 # Listen for messages
 sock.listen(1)
+print('waiting for a connection')
 
 while True:
 
-    print('waiting for a connection')
-    connection, client_address = sock.accept()
     try:
+        connection, client_address = sock.accept()
+
+    except:
+        print('Error')
 
         # Receive Messages
         while True:
@@ -28,54 +69,143 @@ while True:
                 connection.sendall(data)
             else:
                 print('no data from', client_address)
+
+            username = ""
+            nickname = ""
+            realname = ""
+
+            while True:
+
+                msg = socket.recv(1024).decode('utf-8')
+
+                if "USER" not in msg:
+                    socket.send("please enter a correct USER command".encode('utf-8'))
+                    continue
+
+                for c in channels:
+                    for u in c.users:
+                        if u.username == username:
+                            socket.send(f'sorry username already taken: {username} '.encode('utf-8'))
+                            continue
+
+            cmd = msg.split()
+
+            username = cmd[1]
+            realname = cmd[4]
+
+            while True:
+
+                if "NICK" not in msg:
+                    socket.send("please enter a correct NICK command".encode('utf-8'))
+                    continue
+
+                cmd = msg.split()
+                nickname = cmd[1]
+
                 break
 
-    finally:
+        user = User(socket, ADDRESS, username, nickname, realname)
 
-    #not Done
-            class ChannelThread(threading.Thread):
-                def __init__(self):
-                 threading.Thread.__init__(self)
+    sendMSG(f'welcome to the server {user.nickname}!\n', user)
 
-            def run(self):
-                while True:
-                    new_client = self.chan_sock.accept()
+thread = handleClient(user)
+thread.start()
 
-                    def sendall(self, msg):
-                        for client in self.clients:
-                            client[0].sendall(msg)
+#Client Commands
+def listUserCommands():
+    msg = "Commands"
+    msg = msg + "\nJOIN - Join a Channel"
+    msg = msg + "\nPING - PING PONG"
+    msg = msg + "\nPMMSG - private message to a Client"
+    msg = msg + "\nEXIT - you exit\n"
+    return msg
 
-                    class Channel(threading.Thread):
-                        def __init__(self):
-                            threading.Thread.__init__(self)
+#send messages
+def sendMSG(msg, user):
+    try:
+        user.socket.send(msg.encode('utf-8'))
+    except:
+        user.socket.close()
+        print(f'user {user.nickname} disconnected unexpectedly')
+        for c in channels:
+            for u in c.users:
+                if u == user:
+                    c.leave(user)
+        exit()
 
-                    self.daemon = True
-                    self.channel_thread = ChannelThread()
+#join a channel
+def join(user, msg):
+    chanName = msg.strip().split()[1][1:]
+
+    print(chanName)
+
+    channel = None
+
+    for c in channels:
+        if c.name == chanName:
+            channel = c
+
+    if channel == None:
+        data("\nPlease enter a valid channel name", user)
+        return
+
+    for c in channels:
+        for u in c.users:
+            if u == user:
+                c.leave(user)
+
+    channel.join(user)
+    print(f'user {user.nickname} has has joined channel {channel.name}')
 
 
-                    def public_address(self):
-                        return "tcp://%s:%d" % (socket.gethostname(), self.channel_thread.port)
+#private messages handling
+def pm(user, msg):
+    cmd = msg.split(":")
+    message = cmd[1]
 
-                    def register(self, channel_address, update_callback):
-                        host, s_port = channel_address.split("//")[-1].split(":")
+    recipients = cmd[1].split().pop()
+    for recipient in recipients:
+        if recipient[0] == '#':
+            for channel in channels:
+                if channel.name == recipient[1:]:
+                    channel.privateMessageChannel(user, message)
+        else:
+            for channel in channels:
+                for u in channel.users:
+                    if u.nickname == recipient:
+                        data(f"|Private| {user.nickname}: {message}", u)
 
 
-                    port = int(Port)
-                    self.peer_chan_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    self.peer_chan_sock.connect((ADDRESS))
-                    self.start()
+#Command Handling
+class handleClient(threading.Thread):
+    def __init__(self, user):
+        threading.Thread.__init__(self)
+        self.user = user
 
-                    def deal_with_message(self, msg):
-                        self._callback(msg)
+    def run(self):
+        global channels
+        global awaitingPrivate
 
-                    def run(self):
-                        data = ""
+        self.channel = None
 
-                    while True:
-                        new_data = self.peer_chan_sock.recv(1024)
+        data(listUserCommands(), self.user)
 
-                def send_value(self, channel_value):
-                        self.channel_thread.sendall("%s\n\n" % channel_value)
+        while True:
 
-         # Clean up
-            print("Done, waiting for next message")
+            if "JOIN" in msg:
+                join(self.user, msg)
+            elif msg == "PING":
+                sendMSG("PONG", user)
+            elif msg == "LIST":
+                for u in self.channel.users:
+                    sendMSG(f'{u.nickname}\n', self.user)
+            elif "PMMSG" in msg:
+                pm(self.user, msg)
+            elif msg == "EXIT":
+                self.channel.leave(self.user)
+                sendMSG("EXIT", self.user)
+                self.user.socket.shutdown
+                print(f'user {self.user.nickname} has disconnected')
+                break
+            else:
+                self.channel.messageChannel(self.user, msg)
