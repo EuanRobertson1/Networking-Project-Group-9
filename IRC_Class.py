@@ -4,6 +4,7 @@ import socket
 import sys
 import time
 import re
+from datetime import date, datetime
 
 
 # Group 9
@@ -26,6 +27,7 @@ class IRC_Functs:
         #format nicknames
         botNick = (bytes("NICK " + nickname + "\n", "UTF-8"))
         botUser = (bytes("USER " + nickname + " " + nickname + " " + nickname + " :python\n","UTF-8"))
+
         #send formatted nicknames to server
         self.soc.send(botUser) 
         self.soc.send(botNick)
@@ -33,6 +35,7 @@ class IRC_Functs:
         #---join a channel------
         #format the channel name
         chanToJoin = (bytes("JOIN " + chanName + "\n", "UTF-8"))
+
         #send formatted channel name to server
         self.soc.send(chanToJoin)
 
@@ -43,39 +46,51 @@ class IRC_Functs:
         # get response from server
         servResp = self.soc.recv(2040).decode("UTF-8")
 
+        #split response for later use
+        splitResp = servResp.split() 
+
+        #get username of sender 
+        userNick = splitResp[0].strip(':')#remove colon at start
+        sep = '!'
+        nickSep = userNick.split(sep, 1)[0]#remove uneccessary bits after the '!'
+        
+
         if servResp.find('PING') != -1:
             #format the response
             botResp = (bytes('PONG ' + servResp.split()[1] + '\r\n', "UTF-8"))
+
             #send response to server
             self.soc.send(botResp)
 
         #source used when working out how to respond to messages - https://unix.stackexchange.com/questions/710423/facing-difficulties-sending-bytes-containing-white-spaces-python-irc-bot
         if servResp.find('!hello')!= -1:
-            
+            #format date & time
+            currentDate = datetime.now()
+            d = currentDate.strftime("It is currently %H:%M and the date is %d-%m-%Y")
+
             #format response 
-            botResp = (bytes('PRIVMSG ' + channel + " " + ":Hello " + '\n', "UTF-8" ))
+            botResp = (bytes('PRIVMSG ' + channel + " " + ":Hello " + nickSep + ", " + d + '\n', "UTF-8" ))
+
             #send response to server
             self.soc.send(botResp)
         
         if servResp.find('!slap')!= -1:
             #format response
-            botResp = (bytes('PRIVMSG ' + channel + " " + ":Ouch! That hurt :( " + '\n', "UTF-8" ))
+            botResp = (bytes('PRIVMSG ' + channel + " " + "" + '\n', "UTF-8" ))#*Needs fixing 
+
             #send response to server
             self.soc.send(botResp)
         
         #Bot responding to /msg. Worked out with help of this source - https://stackoverflow.com/questions/40076143/python-irc-bot-distinguish-from-channel-messages-and-private-messages
         if servResp.find('PRIVMSG ' )!= -1:
             #check if message is meant for bot or whole channel
-            splitResp = servResp.split()
-            #get username of sender
-            userNick = splitResp[0]
-            sep = '!'
-            nickSep = userNick.split(sep, 1)[0] 
+             
             #only respond if message was sent directly to bot
             if splitResp[2] == nickname:
                 
                 #format response
-                botResp = (bytes('PRIVMSG ' + nickSep + " :" + "Noxus Will Rise!" + '\n', "UTF-8"))
+                botResp = (bytes('PRIVMSG ' + nickSep + " :" + "Noxus Will Rise!" + '\n', "UTF-8")) 
+
                 #send response to server
                 self.soc.send(botResp)
 
