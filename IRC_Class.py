@@ -19,13 +19,19 @@ class IRC_Functs:
         # server connection
         self.soc.connect((serverAddress, portNum))
 
-        # user setup
-        self.soc.send(bytes("USER " + nickname + " " + nickname + " " + nickname + " :python\n",
-                            "UTF-8"))  # fill in the nickname form
-        self.soc.send(bytes("NICK " + nickname + "\n", "UTF-8"))
+        #-----user setup--------
+        #format nicknames
+        botNick = (bytes("NICK " + nickname + "\n", "UTF-8"))
+        botUser = (bytes("USER " + nickname + " " + nickname + " " + nickname + " :python\n","UTF-8"))
+        #send formatted nicknames to server
+        self.soc.send(botUser) 
+        self.soc.send(botNick)
 
-        # join a channel
-        self.soc.send(bytes("JOIN " + chanName + "\n", "UTF-8"))
+        #---join a channel------
+        #format the channel name
+        chanToJoin = (bytes("JOIN " + chanName + "\n", "UTF-8"))
+        #send formatted channel name to server
+        self.soc.send(chanToJoin)
 
     # ping pong with server
     def ping(self):
@@ -35,6 +41,9 @@ class IRC_Functs:
         servResp = self.soc.recv(2040).decode("UTF-8")
 
         if servResp.find('PING') != -1:
-            self.soc.send(bytes('PONG ' + servResp.split()[1] + '\r\n', "UTF-8"))
+            #format the response
+            botResp = (bytes('PONG ' + servResp.split()[1] + '\r\n', "UTF-8"))
+            #send response to server
+            self.soc.send(botResp)
 
         return servResp
