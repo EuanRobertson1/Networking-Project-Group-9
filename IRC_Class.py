@@ -1,3 +1,4 @@
+from http import server
 import socket
 import sys
 import time
@@ -33,8 +34,8 @@ class IRC_Functs:
         #send formatted channel name to server
         self.soc.send(chanToJoin)
 
-    # ping pong with server
-    def ping(self):
+    #Function that allows bot to respond to messages
+    def messages(self, channel,nickname):
         time.sleep(1)
 
         # get response from server
@@ -45,5 +46,25 @@ class IRC_Functs:
             botResp = (bytes('PONG ' + servResp.split()[1] + '\r\n', "UTF-8"))
             #send response to server
             self.soc.send(botResp)
+
+        #source used when working out how to respond to messages - https://unix.stackexchange.com/questions/710423/facing-difficulties-sending-bytes-containing-white-spaces-python-irc-bot
+        if servResp.find('!hello')!= -1:
+            
+            #format response 
+            botResp = (bytes('PRIVMSG ' + channel + " " + ":Hello " + '\n', "UTF-8" ))
+            #send response to server
+            self.soc.send(botResp)
+        
+        if servResp.find('!slap')!= -1:
+            #format response
+            botResp = (bytes('PRIVMSG ' + channel + " " + ":Ouch! That hurt :( " + '\n', "UTF-8" ))
+            #send response to server
+            self.soc.send(botResp)
+        
+        
+
+        #to make bot leave (testing puposes)
+        if servResp.find('!leave')!= -1:
+            quit()
 
         return servResp

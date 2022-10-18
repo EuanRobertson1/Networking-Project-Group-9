@@ -16,7 +16,7 @@ ircServer = IRC_Functs()
 #connect using irc_class connect function
 ircServer.connect(serverAddress, portNum, chanName, nickname)
 
-#respond to pings from server
+#respond to messages from server
 while True:
-    text = ircServer.ping()
+    text = ircServer.messages(chanName, nickname)
     print(text)
