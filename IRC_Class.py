@@ -1,7 +1,9 @@
+from cgitb import text
 from http import server
 import socket
 import sys
 import time
+import re
 
 
 # Group 9
@@ -61,7 +63,21 @@ class IRC_Functs:
             #send response to server
             self.soc.send(botResp)
         
-        
+        #Bot responding to /msg. Worked out with help of this source - https://stackoverflow.com/questions/40076143/python-irc-bot-distinguish-from-channel-messages-and-private-messages
+        if servResp.find('PRIVMSG ' )!= -1:
+            #check if message is meant for bot or whole channel
+            splitResp = servResp.split()
+            #get username of sender
+            userNick = splitResp[0]
+            sep = '!'
+            nickSep = userNick.split(sep, 1)[0] 
+            #only respond if message was sent directly to bot
+            if splitResp[2] == nickname:
+                
+                #format response
+                botResp = (bytes('PRIVMSG ' + nickSep + " :" + "Noxus Will Rise!" + '\n', "UTF-8"))
+                #send response to server
+                self.soc.send(botResp)
 
         #to make bot leave (testing puposes)
         if servResp.find('!leave')!= -1:
