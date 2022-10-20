@@ -56,7 +56,7 @@ class IRC_Functs:
         nickSep = self.getSender(splitResp)
         
         
-        #Repsond to server pings
+        #Respond to server pings
         if servResp.find('PING') != -1:
             #format the response
             botResp = (bytes('PONG ' + servResp.split()[1] + '\r\n', "UTF-8"))
