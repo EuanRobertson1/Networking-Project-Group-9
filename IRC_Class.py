@@ -55,7 +55,14 @@ class IRC_Functs:
         #get username of sender
         nickSep = self.getSender(splitResp)
         
-        
+        #send help message
+        if servResp.find('!help') != -1:
+            #format response
+            botResp = (bytes('PRIVMSG ' + channel + " :" + " Hello, my name is " + nickname + ". You can use !hello to say hello to me, !slap to slap a random user in this channel, and /msg " + nickname + " *your message here* to get me to private message you a random fun fact!" + '\n', "UTF-8"))
+
+            #send response to server
+            self.soc.send(botResp)
+
         #Respond to server pings
         if servResp.find('PING') != -1:
             #format the response
