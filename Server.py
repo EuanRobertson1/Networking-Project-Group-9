@@ -361,7 +361,6 @@ class Server:
     def remove_client(self, client: Client, quitmsg: bytes) -> None:
         client.message_related(b":%s QUIT :%s" % (client.prefix, quitmsg))
         for x in client.channels.values():
-            client.channel_log(x, b"quit (%s)" % quitmsg, meta=True)
             x.remove_client(client)
         if client.nickname and irc_lower(client.nickname) in self.nicknames:
             del self.nicknames[irc_lower(client.nickname)]
