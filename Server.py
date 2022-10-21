@@ -1,3 +1,13 @@
+#Sources:
+# https://www.w3schools.com/python/ref_string_split.asp
+# https://stackoverflow.com/questions/7585435/best-way-to-convert-string-to-bytes-in-python-3
+# https://stackoverflow.com/questions/25058578/how-to-create-channel-with-socket-in-python
+# https://github.com/jrosdahl/miniircd
+# https://realpython.com/python-sockets/
+# https://www.youtube.com/watch?v=0s_w8eHu6LQ
+# https://docs.python.org/3.9/howto/sockets.html
+# https://medium.com/python-pandemonium/python-socket-communication-e10b39225a4c
+
 import socket
 import select
 import sys
@@ -139,13 +149,13 @@ class Client:
             if len(arguments) < 1:
                 self.reply(b"6 :Please use the following format /join #<name>")
                 return
-            if arguments[0] == b"0":
-                for (channelName, channel) in self.channels.items():
-                    self.message_channel(channel, b"PART", channelName, True)
-                    server.remove_member_from_channel(self, channelName)
-                self.channels = {}
+            if arguments[0] != b"0":
+                self.__send_names(arguments, join_channel=True)
                 return
-            self.__send_names(arguments, join_channel=True)
+            for (channelName, channel) in self.channels.items():
+                self.message_channel(channel, b"PART", channelName, True)
+                server.remove_member_from_channel(self, channelName)
+            self.channels = {}
 
         # Sending Messages and PrivMessages
         def msg_to_channel() -> None:
@@ -332,10 +342,8 @@ class Server:
                             f"Accepted connection from {addr[0]}:{addr[1]}."
                         )
                     except socket.error:
-                        try:
-                            conn.close()
-                        except Exception:
-                            pass
+                        conn.close()
+
             for x in client_action:
                 if x in self.clients:
                     self.clients[x].socket_writable()
