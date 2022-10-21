@@ -7,7 +7,8 @@ from typing import Dict, List, Optional, Sequence, Set
 
 Socket = socket.socket
 
-#Initialise Channel
+
+# Initialise Channel
 class Channel:
     def __init__(self, server: "Server", name: bytes) -> None:
         self.server = server
@@ -62,7 +63,8 @@ class Client:
                 # Pings the user, and it saves that it pinged him correctly so the next cycle starts
                 self.message(b"PING :%s" % self.server.name)
                 self._sent_ping = True
-    #Set AFK timer
+
+    # Set AFK timer
     def user_afk(self) -> None:
         if self._timestamp + 180 < time.time():
             self.disconnect("Dont stay afk next time")
@@ -89,7 +91,7 @@ class Client:
                     arguments.append(y[1])
             self._handle_command(command, arguments)
 
-    #Register User
+    # Register User
     def _register_user(
             self, command: bytes, arguments: Sequence[bytes]
     ) -> None:
@@ -145,7 +147,7 @@ class Client:
                 return
             self.__send_names(arguments, join_channel=True)
 
-        #Sending Messages and PrivMessages
+        # Sending Messages and PrivMessages
         def msg_to_channel() -> None:
             targetName = arguments[0]
             message = arguments[1]
@@ -156,19 +158,18 @@ class Client:
                 channel = server.get_channel(targetName)
                 self.message_channel(channel, command, b"%s :%s" % (channel.name, message))
 
-        #You play
+        # You play
         def ping_command() -> None:
             self.reply(b"PONG %s :%s" % (server.name, arguments[0]))
-        #PING PONG
+
+        # PING PONG
         def pong_command() -> None:
             pass
-        #When You want to leave
+
+        # When You want to leave
         def quit_command() -> None:
-            if len(arguments) < 1:
-                quitmsg = self.nickname
-            else:
-                quitmsg = arguments[0]
-            self.disconnect(quitmsg.decode(errors="ignore"))
+            qmsg = "Left"
+            self.disconnect(qmsg)
 
         command_table = {
             b"AWAY": away_command,
@@ -207,11 +208,11 @@ class Client:
             self._send_buffer = self._send_buffer[sent:]
         except socket.error as x:
             self.disconnect(str(x))
-    #Error handler for Disconnect
+
+    # Error handler for Disconnect
     def disconnect(self, quitmsg: str) -> None:
-        self.message(f"ERROR :{quitmsg}".encode())
-        host = self.host.decode(errors="ignore")
-        self.server.print_info(f"Disconnected connection from {host}:{self.port} ({quitmsg}).")
+        host = self.host.decode()
+        self.server.print_info(f"Lost connection from {host}:{self.port} ({quitmsg}).")
         self.socket.close()
         self.server.remove_client(self, quitmsg.encode())
 
@@ -233,13 +234,13 @@ class Client:
             if client != self or include_self:
                 client.message(line)
 
-    #Handle messages
+    # Handle messages
     def message_relate(self, msg: bytes, include_self: bool = False) -> None:
         clients = set()
         if include_self:
             clients.add(self)
         for channel in self.channels.values():
-            clients |= channel.members
+            clients = clients | channel.members
         if not include_self:
             clients.discard(self)
         for client in clients:
@@ -276,7 +277,7 @@ class Server:
         print(msg)
         sys.stdout.flush()
 
-    #Client Change Nickname
+    # Client Change Nickname
     def client_changed_nickname(
             self, client: Client, oldnickname: Optional[bytes]
     ) -> None:
@@ -284,7 +285,7 @@ class Server:
             del self.nicknames[oldnickname]
         self.nicknames[client.nickname] = client
 
-    #Remove Client from channel
+    # Remove Client from channel
     def remove_member_from_channel(
             self, client: Client, channelname: bytes
     ) -> None:
@@ -344,6 +345,7 @@ class Server:
                     client.user_ping()
                     client.user_afk()
                 last_aliveness_check = now
+
 
 server = Server()
 server.start()
