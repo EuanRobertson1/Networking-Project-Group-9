@@ -1,9 +1,8 @@
 import re
 import socket
-import string
 import sys
 import time
-from typing import Any, Dict, List, Optional, Sequence, Set
+from typing import Dict, List, Optional, Sequence, Set
 
 import select
 
@@ -29,12 +28,9 @@ class Channel:
     @key.setter
     def key(self, value: bytes) -> None:
         self._key = value
-        self._write_state()
 
     def remove_client(self, client: "Client") -> None:
         self.members.discard(client)
-        if not self.members:
-            self.server.remove_channel(self)
 
 
 class Client:
@@ -43,7 +39,6 @@ class Client:
     def __init__(self, server: "Server", s: Socket) -> None:
         self.server = server
         self.socket = s
-        # irc_lower(Channel name) --> Channel
         self.channels: Dict[bytes, Channel] = {}
         self.nickname = b""
         self.user = b""
@@ -99,39 +94,37 @@ class Client:
             self, command: bytes, arguments: Sequence[bytes]
     ) -> None:
         server = self.server
-        if command == b"NICK":
+        command = command.decode("utf-8")
+        if command == "NICK":
             nick = arguments[0]
             if server.get_client(nick):
-                self.reply(b"433 * %s :Someone is using this Nickname" % nick)
+                self.reply(b"2 * %s : Someone is using this Nickname, please use /nick to change your nickname" % nick)
             else:
                 self.nickname = nick
                 server.client_changed_nickname(self, None)
-        elif command == b"USER":
+        elif command == "USER":
             self.user = arguments[0]
             self.realName = arguments[3]
-        elif command == b"QUIT":
+        elif command == "QUIT":
             self.disconnect("Bye Bye")
             return
         if self.nickname and self.user:
-            self.reply(b"001 %s :Hi, welcome to Group Project 9" % self.nickname)
+            self.reply(b"1 %s :Hi, welcome to Group Project 9" % self.nickname)
             self.__handle_command = self.__command_handler
 
     def __send_names(
             self, arguments: Sequence[bytes], join_channel: bool = False
     ) -> None:
         server = self.server
-        if len(arguments) > 0:
-            channelNames = arguments[0].split(b",")
-        else:
-            channelNames = sorted(self.channels.keys())
+        channelNames = arguments[0].split(b",")
         for i, channelName in enumerate(channelNames):
-            if join_channel and irc_lower(channelName) in self.channels:
+            if join_channel and channelName in self.channels:
                 continue
             channel = server.get_channel(channelName)
 
             if join_channel:
                 channel.add_member(self)
-                self.channels[irc_lower(channelName)] = channel
+                self.channels[channelName] = channel
                 self.message_channel(channel, b"JOIN", channelName, True)
 
     def __command_handler(
@@ -152,56 +145,17 @@ class Client:
                 return
             self.__send_names(arguments, join_channel=True)
 
-        def names_handler() -> None:
-            self.__send_names(arguments)
 
-        def nick_handler() -> None:
-            if len(arguments) < 1:
-                self.reply(b"431 :No nickname given")
-                return
-            newNick = arguments[0]
-            client = server.get_client(newNick)
-            if newNick == self.nickname:
-                pass
-            elif client and client is not self:
-                self.reply(
-                    b"433 %s %s :Nickname is already in use"
-                    % (self.nickname, newNick)
-                )
-            else:
-                for x in self.channels.values():
-                    self.channel_log(
-                        x, b"changed nickname to %s" % newNick, meta=True
-                    )
-                oldNickname = self.nickname
-                self.nickname = newNick
-                server.client_changed_nickname(self, oldNickname)
-                self.message_related(
-                    b":%s!%s@%s NICK %s"
-                    % (oldNickname, self.user, self.host, self.nickname),
-                    True,
-                )
 
-        def notice_and_privmsg_handler() -> None:
-            targetname = arguments[0]
+        def msg_to_channel_and_pms() -> None:
+            targetName = arguments[0]
             message = arguments[1]
-            client = server.get_client(targetname)
+            client = server.get_client(targetName)
             if client:
-                client.message(
-                    b":%s %s %s :%s"
-                    % (self.prefix, command, targetname, message)
-                )
-            elif server.has_channel(targetname):
-                channel = server.get_channel(targetname)
-                self.message_channel(
-                    channel, command, b"%s :%s" % (channel.name, message)
-                )
-
-            else:
-                self.reply(
-                    b"401 %s %s :No such nick/channel"
-                    % (self.nickname, targetname)
-                )
+                client.message(b":%s %s %s :%s" % (self.prefix, command, targetName, message))
+            elif server.channel_created_on_server(targetName):
+                channel = server.get_channel(targetName)
+                self.message_channel(channel, command, b"%s :%s" % (channel.name, message))
 
         def ping_handler() -> None:
             self.reply(b"PONG %s :%s" % (server.name, arguments[0]))
@@ -219,12 +173,10 @@ class Client:
         handler_table = {
             b"AWAY": away_handler,
             b"JOIN": join_handler,
-            b"NAMES": names_handler,
-            b"NICK": nick_handler,
-            b"NOTICE": notice_and_privmsg_handler,
+            b"NOTICE": msg_to_channel_and_pms,
             b"PING": ping_handler,
             b"PONG": pong_handler,
-            b"PRIVMSG": notice_and_privmsg_handler,
+            b"PRIVMSG": msg_to_channel_and_pms,
             b"QUIT": quit_handler,
         }
         server = self.server
@@ -260,9 +212,7 @@ class Client:
     def disconnect(self, quitmsg: str) -> None:
         self.message(f"ERROR :{quitmsg}".encode())
         host = self.host.decode(errors="ignore")
-        self.server.print_info(
-            f"Disconnected connection from {host}:{self.port} ({quitmsg})."
-        )
+        self.server.print_info(f"Disconnected connection from {host}:{self.port} ({quitmsg}).")
         self.socket.close()
         self.server.remove_client(self, quitmsg.encode())
 
@@ -271,13 +221,6 @@ class Client:
 
     def reply(self, msg: bytes) -> None:
         self.message(b":%s %s" % (self.server.name, msg))
-
-    def reply_403(self, channel: bytes) -> None:
-        self.reply(b"403 %s %s :No such channel" % (self.nickname, channel))
-
-    def reply_461(self, command: bytes) -> None:
-        nickname = self.nickname or b"*"
-        self.reply(b"461 %s %s :Not enough parameters" % (nickname, command))
 
     def message_channel(
             self,
@@ -310,24 +253,23 @@ class Server:
         self.address = "::1"
         self.state_dir = "X"
         self.channel_log_dir = "X"
-        server_name_limit = 63  # From the RFC.
         self.channels: Dict[bytes, Channel] = {}  # key: irc_lower(channelname)
         self.clients: Dict[Socket, Client] = {}
         self.nicknames: Dict[bytes, Client] = {}  # key: irc_lower(nickname)
-        self.name = socket.getfqdn(self.address)[:server_name_limit].encode()
+        self.name = socket.getfqdn(self.address)[:5].encode()
 
     def get_client(self, nickname: bytes) -> Optional[Client]:
-        return self.nicknames.get(irc_lower(nickname))
+        return self.nicknames.get(nickname)
 
-    def has_channel(self, name: bytes) -> bool:
-        return irc_lower(name) in self.channels
+    def channel_created_on_server(self, name: bytes) -> bool:
+        return name in self.channels
 
     def get_channel(self, channelname: bytes) -> Channel:
-        if irc_lower(channelname) in self.channels:
-            channel = self.channels[irc_lower(channelname)]
+        if channelname in self.channels:
+            channel = self.channels[channelname]
         else:
             channel = Channel(self, channelname)
-            self.channels[irc_lower(channelname)] = channel
+            self.channels[channelname] = channel
         return channel
 
     def print_info(self, msg: str) -> None:
@@ -338,22 +280,22 @@ class Server:
             self, client: Client, oldnickname: Optional[bytes]
     ) -> None:
         if oldnickname:
-            del self.nicknames[irc_lower(oldnickname)]
-        self.nicknames[irc_lower(client.nickname)] = client
+            del self.nicknames[oldnickname]
+        self.nicknames[client.nickname] = client
 
     def remove_member_from_channel(
             self, client: Client, channelname: bytes
     ) -> None:
-        if irc_lower(channelname) in self.channels:
-            channel = self.channels[irc_lower(channelname)]
+        if channelname in self.channels:
+            channel = self.channels[channelname]
             channel.remove_client(client)
 
     def remove_client(self, client: Client, quitmsg: bytes) -> None:
         client.message_related(b":%s QUIT :%s" % (client.prefix, quitmsg))
         for x in client.channels.values():
             x.remove_client(client)
-        if client.nickname and irc_lower(client.nickname) in self.nicknames:
-            del self.nicknames[irc_lower(client.nickname)]
+        if client.nickname and client.nickname in self.nicknames:
+            del self.nicknames[client.nickname]
         del self.clients[client.socket]
 
     def start(self) -> None:
@@ -368,25 +310,15 @@ class Server:
         del s
         self.print_info(f"Listening on port 6667.")
         self.run(serversockets)
-        last_aliveness_check = time.time()
-        # while True:
-        #     conn, addr = s.accept()
-        #     self.clients[conn] = Client(self, conn)
-        #     self.clients.socket_writable_notification()
-        #     self.print_info(f"Accepted connection from {addr[0]}:{addr[1]}.")
 
     def run(self, serversockets: List[Socket]) -> None:
         last_aliveness_check = time.time()
         while True:
-            iwtd, owtd, ewtd = select.select(
+            clients, client_action, ewtd = select.select(
                 serversockets + [x.socket for x in self.clients.values()],
                 [x.socket for x in self.clients.values()
-                 if x.write_queue_size() > 0
-                 ],
-                [],
-                10,
-            )
-            for x in iwtd:
+                 if x.write_queue_size() > 0], [], 10)
+            for x in clients:
                 if x in self.clients:
                     self.clients[x].socket_readable_notification()
                 else:
@@ -401,29 +333,16 @@ class Server:
                             conn.close()
                         except Exception:
                             pass
-            for x in owtd:
-                if x in self.clients:  # client may have been disconnected
+            for x in client_action:
+                if x in self.clients:
                     self.clients[x].socket_writable_notification()
             now = time.time()
             if last_aliveness_check + 10 < now:
                 for client in list(self.clients.values()):
                     client.user_ping()
+                    client.user_afk()
                 last_aliveness_check = now
 
 
-_ircstring_translation = bytes.maketrans(
-    (string.ascii_lowercase.upper() + "[]\\^").encode(),
-    (string.ascii_lowercase + "{}|~").encode(),
-)
-
-
-def irc_lower(s: bytes) -> bytes:
-    return s.translate(_ircstring_translation)
-
-
-def main() -> None:
-    server = Server()
-    server.start()
-
-
-main()
+server = Server()
+server.start()
