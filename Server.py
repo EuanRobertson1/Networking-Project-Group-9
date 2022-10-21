@@ -19,7 +19,6 @@ class Channel:
         self._state_path: Optional[str]
         self._state_path = None
 
-
     def add_member(self, client: "Client") -> None:
         self.members.add(client)
 
@@ -53,35 +52,34 @@ class Client:
         self.host = host.encode()
         self.port = port
         self.__timestamp = time.time()
-        self.__readBuffer = b""
-        self.__writeBuffer = b""
+        self._recv_buffer = b""
+        self._send_buffer = b""
         self.__sent_ping = False
-        self.__handle_command = self.__registration_handler
+        self.__handle_command = self._register_user_handler
 
     @property
     def prefix(self) -> bytes:
         return b"%s!%s@%s" % (self.nickname, self.user, self.host)
 
-    def check_aliveness(self) -> None:
-        now = time.time()
-        if self.__timestamp + 180 < now:
-            self.disconnect("ping timeout")
-            return
-        if not self.__sent_ping and self.__timestamp + 90 < now:
+    def user_ping(self) -> None:
+        if not self.__sent_ping and self.__timestamp + 90 < time.time():
+            # Checks if user is registered
             if self.__handle_command == self.__command_handler:
-                # Registered.
+                # Pings the user, and it saves that it pinged him correctly so the next cycle starts
                 self.message(b"PING :%s" % self.server.name)
                 self.__sent_ping = True
-            else:
-                # Not registered.
-                self.disconnect("ping timeout")
+
+    def user_afk(self) -> None:
+        if self.__timestamp + 180 < time.time():
+            self.disconnect("Dont stay afk next time")
+            return
 
     def write_queue_size(self) -> int:
-        return len(self.__writeBuffer)
+        return len(self._send_buffer)
 
-    def __parse_read_buffer(self) -> None:
-        lines = self.__linesep_regexp.split(self.__readBuffer)
-        self.__readBuffer = lines[-1]
+    def _read_buffer(self) -> None:
+        lines = self.__linesep_regexp.split(self._recv_buffer)
+        self._recv_buffer = lines[-1]
         lines = lines[:-1]
         for line in lines:
             x = line.split(b" ", 1)
@@ -97,35 +95,29 @@ class Client:
                     arguments.append(y[1])
             self.__handle_command(command, arguments)
 
-    def __registration_handler(
+    def _register_user_handler(
             self, command: bytes, arguments: Sequence[bytes]
     ) -> None:
         server = self.server
         if command == b"NICK":
-            if len(arguments) < 1:
-                self.reply(b"431 :No nickname given")
-                return
             nick = arguments[0]
             if server.get_client(nick):
-                self.reply(b"433 * %s :Nickname is already in use" % nick)
+                self.reply(b"433 * %s :Someone is using this Nickname" % nick)
             else:
                 self.nickname = nick
                 server.client_changed_nickname(self, None)
         elif command == b"USER":
-            if len(arguments) < 4:
-                self.reply_461(b"USER")
-                return
             self.user = arguments[0]
             self.realName = arguments[3]
         elif command == b"QUIT":
-            self.disconnect("Client quit")
+            self.disconnect("Bye Bye")
             return
         if self.nickname and self.user:
-            self.reply(b"001 %s :Hi, welcome to IRC" % self.nickname)
+            self.reply(b"001 %s :Hi, welcome to Group Project 9" % self.nickname)
             self.__handle_command = self.__command_handler
 
     def __send_names(
-            self, arguments: Sequence[bytes], for_join: bool = False
+            self, arguments: Sequence[bytes], join_channel: bool = False
     ) -> None:
         server = self.server
         if len(arguments) > 0:
@@ -133,15 +125,14 @@ class Client:
         else:
             channelNames = sorted(self.channels.keys())
         for i, channelName in enumerate(channelNames):
-            if for_join and irc_lower(channelName) in self.channels:
+            if join_channel and irc_lower(channelName) in self.channels:
                 continue
             channel = server.get_channel(channelName)
 
-            if for_join:
+            if join_channel:
                 channel.add_member(self)
                 self.channels[irc_lower(channelName)] = channel
                 self.message_channel(channel, b"JOIN", channelName, True)
-
 
     def __command_handler(
             self, command: bytes, arguments: Sequence[bytes]
@@ -151,7 +142,7 @@ class Client:
 
         def join_handler() -> None:
             if len(arguments) < 1:
-                self.reply_461(b"JOIN")
+                self.reply(b"431 :Please use the following format /join #<name>")
                 return
             if arguments[0] == b"0":
                 for (channelName, channel) in self.channels.items():
@@ -159,7 +150,7 @@ class Client:
                     server.remove_member_from_channel(self, channelName)
                 self.channels = {}
                 return
-            self.__send_names(arguments, for_join=True)
+            self.__send_names(arguments, join_channel=True)
 
         def names_handler() -> None:
             self.__send_names(arguments)
@@ -246,14 +237,14 @@ class Client:
 
     def socket_readable_notification(self) -> None:
         try:
-            data = self.socket.recv(2 ** 10)
-            quitmsg = "EOT"
+            data = self.socket.recv(1024)
+            quitmsg = "Bye bye"
         except socket.error as e:
             data = b""
             quitmsg = str(e)
         if data:
-            self.__readBuffer += data
-            self.__parse_read_buffer()
+            self._recv_buffer += data
+            self._read_buffer()
             self.__timestamp = time.time()
             self.__sent_ping = False
         else:
@@ -261,8 +252,8 @@ class Client:
 
     def socket_writable_notification(self) -> None:
         try:
-            sent = self.socket.send(self.__writeBuffer)
-            self.__writeBuffer = self.__writeBuffer[sent:]
+            sent = self.socket.send(self._send_buffer)
+            self._send_buffer = self._send_buffer[sent:]
         except socket.error as x:
             self.disconnect(str(x))
 
@@ -276,7 +267,7 @@ class Client:
         self.server.remove_client(self, quitmsg.encode())
 
     def message(self, msg: bytes) -> None:
-        self.__writeBuffer += msg + b"\r\n"
+        self._send_buffer += msg + b"\r\n"
 
     def reply(self, msg: bytes) -> None:
         self.message(b":%s %s" % (self.server.name, msg))
@@ -324,7 +315,6 @@ class Server:
         self.clients: Dict[Socket, Client] = {}
         self.nicknames: Dict[bytes, Client] = {}  # key: irc_lower(nickname)
         self.name = socket.getfqdn(self.address)[:server_name_limit].encode()
-
 
     def get_client(self, nickname: bytes) -> Optional[Client]:
         return self.nicknames.get(irc_lower(nickname))
@@ -374,9 +364,16 @@ class Server:
         s.bind((self.address, 6667))
         s.listen(5)
         serversockets.append(s)
+
         del s
         self.print_info(f"Listening on port 6667.")
         self.run(serversockets)
+        last_aliveness_check = time.time()
+        # while True:
+        #     conn, addr = s.accept()
+        #     self.clients[conn] = Client(self, conn)
+        #     self.clients.socket_writable_notification()
+        #     self.print_info(f"Accepted connection from {addr[0]}:{addr[1]}.")
 
     def run(self, serversockets: List[Socket]) -> None:
         last_aliveness_check = time.time()
@@ -410,7 +407,7 @@ class Server:
             now = time.time()
             if last_aliveness_check + 10 < now:
                 for client in list(self.clients.values()):
-                    client.check_aliveness()
+                    client.user_ping()
                 last_aliveness_check = now
 
 
