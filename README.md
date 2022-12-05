@@ -13,6 +13,7 @@ main2.py is the finished Server file <br />
 ircBot.py is the finished bot file which uses functions from the IRC_Class.py <br />
 test.py and Server.py contain code from @jrosdahl's [miniircd project] (https://github.com/jrosdahl/miniircd) which we used for testing purposes. <br />
 
+
 ## Bot Arguments
 How to use the bot <br />
 Running the bot requires the use of a few arguments: <br />
@@ -25,5 +26,5 @@ Once connected to the sever the bot will respond to a few commands issued by oth
 ```!help``` will make the bot explain its purpose in a message sent to the channel <br />
 ```!hello``` will make the bot say hello <br />
 ```!slap``` will make the bot slap a random user in the channel *this is slighty buggy and needs fixing* <br />
-```/msg *bot nickname*``` will make the bot send the user a dm with a random fact
+```/msg *bot nickname*``` will make the bot send the user a dm with a random fact <br />
 ```!leave``` will make the bot leave the channel <br />
