@@ -11,7 +11,7 @@ Antonis Tziouliou - a.tziouliou@dundee.ac.uk <br />
 ## Files
 main2.py is the finished Server file <br />
 ircBot.py is the finished bot file which uses functions from the IRC_Class.py <br />
-test.py and Server.py contain code from @jrosdahl's [miniircd project](https://github.com/jrosdahl/miniircd) which we used for testing purposes. <br />
+test.py and Server.py contain code from jrosdahl's [miniircd project](https://github.com/jrosdahl/miniircd) which we used for testing purposes. <br />
 
 
 ## Bot Arguments
