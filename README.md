@@ -1,7 +1,7 @@
 # Networking Project Group 9
 
 ## Background
-We were required to make a basic IPv6 IRC bot and Server part of the Dundee University 3rd year Computing Networks module (AC31008). <br />
+We were required to make a basic IPv6 IRC bot and Server part of the Dundee University 3rd year Computing Networks module [(AC31008)](https://www.dundee.ac.uk/module/ac31008). <br />
 The main contributors of this Project were: <br />
 Euan Robertson - 2463967@dundee.ac.uk <br />
 Matthew Gallacher - 2436912@dundee.ac.uk <br />
