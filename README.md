@@ -1,19 +1,19 @@
 # Networking Project Group 9
 
-##Background
+
 We were required to make a basic IPv6 IRC bot and Server part of the Dundee University 3rd year Computing Networks module (AC31008). 
 THe main contributors of this Project were:
-Euan Robertson - 2463967@dundee.ac.uk
+Euan Robertson - 2463967@dundee.ac.uk                 
 Matthew Gallacher - 2436912@dundee.ac.uk
 Georghios Tziouliou - 2412649@dundee.ac.uk
 Antonis Tziouliou - a,tziouliou@dundee.ac.uk
 
-######Files
+
 main2.py is the finished Server file
 ircBot.py is the finished bot file which uses functions from the IRC_Class.py
 test.py and Server.py contain code from @jrosdahl's [miniircd project](https://github.com/jrosdahl/miniircd) which we used for testing purposes. 
 
-##bot usage
+How to use the bot
 Running the bot requires the use of a few arguments:
 --a to specify the IPV6 address
 --c to specify a channel that the bot should join
